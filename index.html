@@ -368,14 +368,17 @@ function renderQueue(){
 }
 
 function renderProductionQueue(){
-    const q=document.getElementById("prodQueue");
-    if(!q)return;
-    q.innerHTML="";
-    pozadavky.forEach(p=>{
-        q.innerHTML+=`<div class="queueItem">
-            <b>${p.kontakt}</b> - ${p.prurez} - ${p.jmeno}
-        </div>`;
-    });
+ const q=document.getElementById("prodQueue");
+ if(!q)return;
+
+ q.innerHTML="";
+
+ pozadavky.forEach(p=>{
+  q.innerHTML+=`<div class="queueItem">
+   <b>${p.kontakt}</b> - ${p.prurez} - ${p.jmeno}
+   <div class="time">${new Date(p.time).toLocaleTimeString()}</div>
+  </div>`;
+ });
 }
 
 window.addRequest=function(){
