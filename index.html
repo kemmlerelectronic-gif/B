@@ -11,6 +11,17 @@ body{font-family:Segoe UI,Arial;background:#0b1220;color:white;margin:0;padding:
 .topbarContainer{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;}
 .topbar{text-align:center;}
 
+.deleteBtn{
+ margin:2px;
+ padding:4px 8px;
+ background:#ef4444;
+ border:none;
+ border-radius:4px;
+ color:white;
+ cursor:pointer;
+ font-size:12px;
+}
+
 .topbar button{
 padding:10px 20px;
 margin:5px;
@@ -318,31 +329,42 @@ function renderProduction(){
 }
 
 function renderQueueRequests(){
-    const q = document.getElementById("queueListRequests");
-    if(!q) return;
-    q.innerHTML="";
-    pozadavky.forEach((p,i)=>{
-        q.innerHTML += `<div class="queueItem">
-            <b>${p.kontakt}</b> - ${p.prurez} - ${p.jmeno}
-            <div class="assign">
-                ${[0,1,2,3,4,5,6].map(l=>`<button onclick="assignRequest(${l}, ${i})">L${l+1}</button>`).join('')}
-            </div>
-        </div>`;
-    });
-}
+ const q = document.getElementById("queueListRequests");
+ if(!q) return;
 
+ q.innerHTML="";
+
+ pozadavky.forEach((p,i)=>{
+  q.innerHTML += `<div class="queueItem">
+   <b>${p.kontakt}</b> - ${p.prurez} - ${p.jmeno}
+<span class="time">${new Date(p.time).toLocaleTimeString()}</span>
+
+   <div class="assign">
+    ${[0,1,2,3,4,5,6].map(l=>`<button onclick="assignRequest(${l}, ${i})">L${l+1}</button>`).join('')}
+    <button class="deleteBtn" onclick="deleteRequest('${p.key}')">❌</button>
+   </div>
+
+  </div>`;
+ });
+}
 function renderQueue(){
-    const q=document.getElementById("queueList");
-    if(!q) return;
-    q.innerHTML="";
-    pozadavky.forEach((p,i)=>{
-        q.innerHTML+=`<div class="queueItem">
-            <b>${p.kontakt}</b> - ${p.prurez} - ${p.jmeno}
-            <div class="assign">
-                ${[0,1,2,3,4,5,6].map(l=>`<button onclick="assignRequest(${l}, ${i})">L${l+1}</button>`).join('')}
-            </div>
-        </div>`;
-    });
+ const q=document.getElementById("queueList");
+ if(!q) return;
+
+ q.innerHTML="";
+
+ pozadavky.forEach((p,i)=>{
+  q.innerHTML+=`<div class="queueItem">
+  <b>${p.kontakt}</b> - ${p.prurez} - ${p.jmeno}
+<span class="time">${new Date(p.time).toLocaleTimeString()}</span>
+
+   <div class="assign">
+    ${[0,1,2,3,4,5,6].map(l=>`<button onclick="assignRequest(${l}, ${i})">L${l+1}</button>`).join('')}
+    <button class="deleteBtn" onclick="deleteRequest('${p.key}')">❌</button>
+   </div>
+
+  </div>`;
+ });
 }
 
 function renderProductionQueue(){
@@ -357,12 +379,27 @@ function renderProductionQueue(){
 }
 
 window.addRequest=function(){
-    const kontakt=document.getElementById("kontakt").value;
-    const prurez=document.getElementById("prurez").value;
-    const jmeno=document.getElementById("jmeno").value;
-    if(!kontakt) return;
-    const newRef=push(ref(db,'pozadavky'));
-    set(newRef,{kontakt,prurez,jmeno,time:Date.now()});
+
+ const kontaktInput=document.getElementById("kontakt");
+ const prurezInput=document.getElementById("prurez");
+ const jmenoInput=document.getElementById("jmeno");
+
+ const kontakt=kontaktInput.value;
+ const prurez=prurezInput.value;
+ const jmeno=jmenoInput.value;
+
+ if(!kontakt) return;
+
+ const newRef=push(ref(db,'pozadavky'));
+ set(newRef,{kontakt,prurez,jmeno,time:Date.now()});
+
+ // vymazání formuláře
+ kontaktInput.value="";
+ prurezInput.value="";
+ jmenoInput.value="";
+
+ // kurzor zpět do prvního pole
+ kontaktInput.focus();
 }
 
 window.addRequestSetup=function(){
@@ -388,6 +425,10 @@ window.assignRequest=function(lisIndex, requestIndex){
 
 window.clearLis=function(i){
     set(ref(db,`lisy/${i}`),emptyLis());
+
+}
+window.deleteRequest=function(key){
+ remove(ref(db,'pozadavky/'+key));
 }
 
 function autoBlink(i){
