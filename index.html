@@ -1174,14 +1174,30 @@ window.addEventListener("load",()=>{
     }
 });
 
-setInterval(()=>{
-  const production = document.getElementById("productionScreen"); /* Název z tvého nového kódu */
-  if(production.style.display !== "block") return;
+      setupMode(); // Jinak výchozí je setupMode
+    }
+});
+
+let scrollDirection = 1; // 1 pro dolů, -1 pro nahoru
+
+setInterval(() => {
+  const production = document.getElementById("productionScreen");
+  if (production.style.display !== "block") return;
   const q = production.querySelector(".queue");
-  if(!q) return;
-  q.scrollTop += 1;
-  if(q.scrollTop + q.clientHeight >= q.scrollHeight) q.scrollTop = 0;
-},100);
+  if (!q) return;
+
+  // Posuneme scrollbar
+  q.scrollTop += scrollDirection;
+
+  // Pokud jsme na konci rolování dolů, změníme směr nahoru
+  if (q.scrollTop + q.clientHeight >= q.scrollHeight && scrollDirection === 1) {
+    scrollDirection = -1;
+  } 
+  // Pokud jsme na začátku rolování nahoru, změníme směr dolů
+  else if (q.scrollTop <= 0 && scrollDirection === -1) {
+    scrollDirection = 1;
+  }
+}, 100);
 
 </script>
 </body>
