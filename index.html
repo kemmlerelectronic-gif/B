@@ -35,6 +35,7 @@ gap: 20px;
     transform: translateY(-100%);
     opacity: 0;
     pointer-events: none; 
+    display: none !important; /* Kompletní skrytí lišty */
 }
 
 .kemmsTop { 
@@ -229,7 +230,7 @@ box-shadow: 0 8px 20px rgba(0,0,0,0.7), inset 0 0 10px rgba(255,255,255,0.05);
 border: 1px solid rgba(34, 197, 94, 0.15);
 box-sizing: border-box;
 }
-/* Úprava pro Výrobní obrazovku: necháme místo dole na fixní QR kód, aby text pod něj mohl rolovat */
+/* Úprava pro Výrobní obrazovku */
 #productionScreen .queue {
     padding-bottom: 200px; 
 }
@@ -319,7 +320,7 @@ box-sizing: border-box;
     border-radius: 16px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(34, 197, 94, 0.4);
     border: 2px solid #22c55e;
-    display: none; /* Schovaný defaultně, JS ho zapne jen ve výrobním režimu */
+    display: none; 
 }
 .production-fixed-qr img {
     display: block;
@@ -439,8 +440,8 @@ margin-bottom: 10px;
 
 <body>
 
-<div class="topbarContainer">
-<div class="kemmsTop">KEMMSOFT BETA 4.5.1</div>
+<div class="topbarContainer" id="mainTopbarContainer">
+<div class="kemmsTop">KEMMSOFT BETA 4.0.0</div>
 
 <div class="vzkazTickerContainer">
     <div class="vzkazTicker" id="tickerText">Žádné nové vzkazy.</div>
@@ -552,7 +553,8 @@ window.setupMode = function() {
     document.getElementById("setupScreen").style.display = "block";
     document.getElementById("productionScreen").style.display = "none";
     document.getElementById("requestsScreen").style.display = "none";
-    document.getElementById("productionFixedQrContainer").style.display = "none"; // Schovat fixní QR
+    document.getElementById("productionFixedQrContainer").style.display = "none"; 
+    document.getElementById("mainTopbarContainer").classList.remove("hidden"); // Zobrazit lištu v adminu
     updateActiveNav("nav-setup");
 }
 
@@ -560,7 +562,8 @@ window.productionMode = function() {
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("productionScreen").style.display = "block";
     document.getElementById("requestsScreen").style.display = "none";
-    document.getElementById("productionFixedQrContainer").style.display = "block"; // Ukázat fixní QR
+    document.getElementById("productionFixedQrContainer").style.display = "block"; 
+    document.getElementById("mainTopbarContainer").classList.remove("hidden"); // Zobrazit lištu ve výrobě
     updateActiveNav("nav-production");
 }
 
@@ -568,7 +571,15 @@ window.requestsMode = function() {
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("productionScreen").style.display = "none";
     document.getElementById("requestsScreen").style.display = "flex";
-    document.getElementById("productionFixedQrContainer").style.display = "none"; // Schovat fixní QR
+    document.getElementById("productionFixedQrContainer").style.display = "none"; 
+    
+    // Zjistíme, jestli uživatel přišel přes QR kód (#requests v URL)
+    if(window.location.hash === "#requests") {
+        document.getElementById("mainTopbarContainer").classList.add("hidden"); // Kompletně skryje Topbar lištu s navigací
+    } else {
+        document.getElementById("mainTopbarContainer").classList.remove("hidden");
+    }
+    
     updateActiveNav("nav-requests");
 }
 
@@ -608,7 +619,6 @@ function updateMainHeaderDisplay(text){
     }
 }
 
-// UKLÁDÁNÍ DO SEZNAMU VZKAZŮ PŘES PUSH
 window.sendVzkaz = function(inputId) {
     const inputEl = document.getElementById(inputId);
     if (!inputEl) return;
@@ -625,12 +635,10 @@ window.sendVzkaz = function(inputId) {
     inputEl.value = ""; 
 }
 
-// MAZÁNÍ KONKRÉTNÍHO VZKAZU PODLE KLÍČE
 window.deleteVzkaz = function(key) {
     remove(ref(db, 'vzkazy_list/' + key));
 }
 
-// ŽIVÉ NAČÍTÁNÍ SEZNAMU VZKAZŮ A AKTUALIZACE TOPBARU
 onValue(ref(db, 'vzkazy_list'), snap => {
     const data = snap.val();
     const ticker = document.getElementById("tickerText");
@@ -640,8 +648,6 @@ onValue(ref(db, 'vzkazy_list'), snap => {
 
     if(data) {
         const vzkazyPole = Object.entries(data).map(([key, val]) => ({...val, key})).sort((a,b) => b.time - a.time);
-        
-        // 1. Aktualizace rolujícího topbaru (spojí všechny vzkazy dohromady)
         let tickerText = "⚠️ ";
         vzkazyPole.forEach((v, index) => {
             const cas = new Date(v.time).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});
@@ -651,7 +657,6 @@ onValue(ref(db, 'vzkazy_list'), snap => {
         tickerText += `            *** `;
         ticker.innerText = tickerText;
 
-        // 2. Vykreslení seznamu s tlačítky SMAZAT do Nastavení
         if(listEl) {
             listEl.innerHTML = "";
             vzkazyPole.forEach(v => {
@@ -868,18 +873,15 @@ function autoBlink(i){
     playTone();
 }
 
-// FUNKCE PRO GENEROVÁNÍ QR KÓDŮ
 function generateQR() {
     const cleanUrl = window.location.href.split('#')[0];
     const targetUrl = cleanUrl + "#requests";
     
-    // 1. QR kód pro Nastavení
     const qrImgEl = document.getElementById("qrCodeImg");
     if(qrImgEl) {
         qrImgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(targetUrl)}`;
     }
     
-    // 2. Fixní QR kód pro Výrobní obrazovku
     const prodQrImgEl = document.getElementById("prodQrCodeImg");
     if(prodQrImgEl) {
         prodQrImgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(targetUrl)}`;
