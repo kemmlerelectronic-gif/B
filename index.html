@@ -35,7 +35,7 @@ gap: 20px;
     transform: translateY(-100%);
     opacity: 0;
     pointer-events: none; 
-    display: none !important; /* Kompletní skrytí lišty */
+    display: none !important; 
 }
 
 .kemmsTop { 
@@ -230,7 +230,6 @@ box-shadow: 0 8px 20px rgba(0,0,0,0.7), inset 0 0 10px rgba(255,255,255,0.05);
 border: 1px solid rgba(34, 197, 94, 0.15);
 box-sizing: border-box;
 }
-/* Úprava pro Výrobní obrazovku */
 #productionScreen .queue {
     padding-bottom: 200px; 
 }
@@ -441,7 +440,7 @@ margin-bottom: 10px;
 <body>
 
 <div class="topbarContainer" id="mainTopbarContainer">
-<div class="kemmsTop">KEMMSOFT BETA 4.0.0</div>
+<div class="kemmsTop">KEMMSOFT BETA 4.5.1</div>
 
 <div class="vzkazTickerContainer">
     <div class="vzkazTicker" id="tickerText">Žádné nové vzkazy.</div>
@@ -546,36 +545,54 @@ let pozadavky=[];
 let lastPozadavky = []; 
 let lastLisy=[]; 
 
+// Globální audio kontext
+let audioCtx = null;
+
 function emptyLis(){ return {kontakt:"",prurez:"",jmeno:"",time:""} }
 function timeNow(){ return new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'}) }
 
+// POJISTKA PRO AUDIO: Inicializuje nebo probudí audio kontext po interakci uživatele
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+// Navázání odemčení zvuku na kliknutí kdekoliv na stránce
+document.addEventListener('click', initAudio, { once: false });
+
 window.setupMode = function() {
+    initAudio();
     document.getElementById("setupScreen").style.display = "block";
     document.getElementById("productionScreen").style.display = "none";
     document.getElementById("requestsScreen").style.display = "none";
     document.getElementById("productionFixedQrContainer").style.display = "none"; 
-    document.getElementById("mainTopbarContainer").classList.remove("hidden"); // Zobrazit lištu v adminu
+    document.getElementById("mainTopbarContainer").classList.remove("hidden"); 
     updateActiveNav("nav-setup");
 }
 
 window.productionMode = function() {
+    initAudio();
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("productionScreen").style.display = "block";
     document.getElementById("requestsScreen").style.display = "none";
     document.getElementById("productionFixedQrContainer").style.display = "block"; 
-    document.getElementById("mainTopbarContainer").classList.remove("hidden"); // Zobrazit lištu ve výrobě
+    document.getElementById("mainTopbarContainer").classList.remove("hidden"); 
     updateActiveNav("nav-production");
 }
 
 window.requestsMode = function() {
+    initAudio();
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("productionScreen").style.display = "none";
     document.getElementById("requestsScreen").style.display = "flex";
     document.getElementById("productionFixedQrContainer").style.display = "none"; 
     
-    // Zjistíme, jestli uživatel přišel přes QR kód (#requests v URL)
     if(window.location.hash === "#requests") {
-        document.getElementById("mainTopbarContainer").classList.add("hidden"); // Kompletně skryje Topbar lištu s navigací
+        document.getElementById("mainTopbarContainer").classList.add("hidden"); 
     } else {
         document.getElementById("mainTopbarContainer").classList.remove("hidden");
     }
@@ -592,17 +609,24 @@ function updateActiveNav(activeId) {
 
 window.playTone = function() {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        // Zkusíme inicializovat/probudit kontext těsně před přehráním
+        initAudio();
+        
+        if (!audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
         osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 523.25; 
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.connect(audioCtx.destination);
+        
+        osc.frequency.value = 523.25; // Tón C5
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        
         osc.start();
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.stop(ctx.currentTime + 0.3);
-    } catch(e) { console.log("Audio API nepodporováno"); }
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.stop(audioCtx.currentTime + 0.3);
+    } catch(e) { console.log("Audio API nepodporováno nebo blokováno", e); }
 }
 
 function updateMainHeaderDisplay(text){
