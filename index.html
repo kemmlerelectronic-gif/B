@@ -223,11 +223,17 @@ transition: all 0.3s ease;
 background: linear-gradient(145deg, #020617ee, #111827ee); 
 padding:20px;
 border-radius:22px;
-max-height:85vh;
+max-height:80vh;
 overflow-y:auto;
 box-shadow: 0 8px 20px rgba(0,0,0,0.7), inset 0 0 10px rgba(255,255,255,0.05);
 border: 1px solid rgba(34, 197, 94, 0.15);
+box-sizing: border-box;
 }
+/* Úprava pro Výrobní obrazovku: necháme místo dole na fixní QR kód, aby text pod něj mohl rolovat */
+#productionScreen .queue {
+    padding-bottom: 200px; 
+}
+
 .queue h3, .queueTitle { 
     color: #22c55e;
     text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
@@ -281,7 +287,7 @@ border: 1px solid rgba(34, 197, 94, 0.15);
 }
 .vzkazItem button:hover { background: #dc2626; }
 
-/* SEKCE PRO QR KÓD */
+/* SEKCE PRO QR KÓD (NASTAVENÍ) */
 .qrSection {
     margin-top: 25px;
     padding-top: 15px;
@@ -300,6 +306,25 @@ border: 1px solid rgba(34, 197, 94, 0.15);
     display: block;
     width: 150px;
     height: 150px;
+}
+
+/* ROŽNÍ FIXNÍ QR KÓD PRO VÝROBNÍ OBRAZOVKU */
+.production-fixed-qr {
+    position: fixed;
+    bottom: 35px;
+    right: 45px;
+    z-index: 999;
+    background: white;
+    padding: 12px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(34, 197, 94, 0.4);
+    border: 2px solid #22c55e;
+    display: none; /* Schovaný defaultně, JS ho zapne jen ve výrobním režimu */
+}
+.production-fixed-qr img {
+    display: block;
+    width: 140px;
+    height: 140px;
 }
 
 .queueItem{
@@ -415,7 +440,7 @@ margin-bottom: 10px;
 <body>
 
 <div class="topbarContainer">
-<div class="kemmsTop">KEMMSOFT BETA 4.0.0</div>
+<div class="kemmsTop">KEMMSOFT BETA 4.5.1</div>
 
 <div class="vzkazTickerContainer">
     <div class="vzkazTicker" id="tickerText">Žádné nové vzkazy.</div>
@@ -496,6 +521,10 @@ margin-bottom: 10px;
 </div>
 </div>
 
+<div id="productionFixedQrContainer" class="production-fixed-qr">
+    <img id="prodQrCodeImg" src="" alt="QR Kód pro zadávání požadavků">
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getDatabase, ref, push, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
@@ -523,6 +552,7 @@ window.setupMode = function() {
     document.getElementById("setupScreen").style.display = "block";
     document.getElementById("productionScreen").style.display = "none";
     document.getElementById("requestsScreen").style.display = "none";
+    document.getElementById("productionFixedQrContainer").style.display = "none"; // Schovat fixní QR
     updateActiveNav("nav-setup");
 }
 
@@ -530,6 +560,7 @@ window.productionMode = function() {
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("productionScreen").style.display = "block";
     document.getElementById("requestsScreen").style.display = "none";
+    document.getElementById("productionFixedQrContainer").style.display = "block"; // Ukázat fixní QR
     updateActiveNav("nav-production");
 }
 
@@ -537,6 +568,7 @@ window.requestsMode = function() {
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("productionScreen").style.display = "none";
     document.getElementById("requestsScreen").style.display = "flex";
+    document.getElementById("productionFixedQrContainer").style.display = "none"; // Schovat fixní QR
     updateActiveNav("nav-requests");
 }
 
@@ -836,18 +868,30 @@ function autoBlink(i){
     playTone();
 }
 
-// FUNKCE PRO GENEROVÁNÍ QR KÓDU NA AKTUÁLNÍ URL STRÁNKY
+// FUNKCE PRO GENEROVÁNÍ QR KÓDŮ
 function generateQR() {
-    const currentUrl = window.location.href;
+    const cleanUrl = window.location.href.split('#')[0];
+    const targetUrl = cleanUrl + "#requests";
+    
+    // 1. QR kód pro Nastavení
     const qrImgEl = document.getElementById("qrCodeImg");
     if(qrImgEl) {
-        // Vygeneruje QR kód o velikosti 150x150 px odkazující na aktuální adresu
-        qrImgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentUrl)}`;
+        qrImgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(targetUrl)}`;
+    }
+    
+    // 2. Fixní QR kód pro Výrobní obrazovku
+    const prodQrImgEl = document.getElementById("prodQrCodeImg");
+    if(prodQrImgEl) {
+        prodQrImgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(targetUrl)}`;
     }
 }
 
 window.onload = function() {
-    setupMode();
+    if(window.location.hash === "#requests") {
+        requestsMode();
+    } else {
+        setupMode();
+    }
     generateQR();
 }
 </script>
