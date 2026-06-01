@@ -609,23 +609,43 @@ function updateActiveNav(activeId) {
 
 window.playTone = function() {
     try {
-        // Zkusíme inicializovat/probudit kontext těsně před přehráním
         initAudio();
-        
         if (!audioCtx) return;
 
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        // --- 1. TÓN: "DING" (Vysoký tón) ---
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
         
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
         
-        osc.frequency.value = 440; // Tón C5
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        osc1.frequency.value = 587.33; // Tón D5 (jasný vysoký začátek)
+        gain1.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        // Plynulé utišení prvního tónu
+        gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
         
-        osc.start();
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        osc.stop(audioCtx.currentTime + 0.3);
+        osc1.start(audioCtx.currentTime);
+        osc1.stop(audioCtx.currentTime + 0.4);
+
+        // --- 2. TÓN: "DONG" (Hlubší tón se zpožděním) ---
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        
+        osc2.frequency.value = 440.00; // Tón A4 (hlubší tón z předchozího skriptu)
+        
+        // Zpoždění druhého tónu o 0.25 sekundy po prvním
+        const startTimeDong = audioCtx.currentTime + 0.25; 
+        
+        gain2.gain.setValueAtTime(0.25, startTimeDong);
+        // Druhý tón necháme doznít o něco déle, aby zvuk působil přirozeně
+        gain2.gain.exponentialRampToValueAtTime(0.01, startTimeDong + 0.6);
+        
+        osc2.start(startTimeDong);
+        osc2.stop(startTimeDong + 0.6);
+
     } catch(e) { console.log("Audio API nepodporováno nebo blokováno", e); }
 }
 
