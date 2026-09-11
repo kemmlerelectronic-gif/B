@@ -954,6 +954,7 @@ input:focus {
         <table class="historyTable">
             <thead>
                 <tr>
+                    <th>Datum zadání</th>
                     <th>Kontakt</th>
                     <th>Průřez</th>
                     <th>Jméno</th>
@@ -965,7 +966,7 @@ input:focus {
             </thead>
             <tbody id="historyTableBody">
                 <tr>
-                    <td colspan="7" style="text-align:center; color: #94a3b8;">Žádná historie k zobrazení.</td>
+                    <td colspan="8" style="text-align:center; color: #94a3b8;">Žádná historie k zobrazení.</td>
                 </tr>
             </tbody>
         </table>
@@ -1056,6 +1057,7 @@ let pozadavky = [];
 let historieList = [];
 let lastLisy = [];
 let currentScreen = "setup";
+let modalTimer = null;
 
 let audioCtx = null;
 
@@ -1068,6 +1070,7 @@ function emptyLis() {
         prurez: "",
         jmeno: "",
         time: "",
+        datumZadani: "",
         timeZadani: "",
         timeNaLisu: ""
     };
@@ -1081,6 +1084,14 @@ function timeNow() {
             minute: '2-digit'
         }
     );
+}
+
+function dateNow() {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}.${month}.${year}`;
 }
 
 
@@ -1322,10 +1333,10 @@ onValue(ref(db, 'vzkazy_list'), snap => {
 });
 
 
-/* ================= MODAL & MANUÁLNÍ PROZVONĚNÍ ================= */
+/* ================= MODAL & PROZVONĚNÍ ================= */
 
-function showModal(lisNum, kontakt, prurez, jmeno, force = false) {
-    if (currentScreen !== "production" && !force) return;
+function showModal(lisNum, kontakt, prurez, jmeno) {
+    if (currentScreen !== "production") return;
 
     const modal = document.getElementById("requestModal");
     if (!modal) return;
@@ -1337,19 +1348,34 @@ function showModal(lisNum, kontakt, prurez, jmeno, force = false) {
 
     modal.style.display = "flex";
 
-    setTimeout(() => {
+    if (modalTimer) clearTimeout(modalTimer);
+    modalTimer = setTimeout(() => {
         modal.style.display = "none";
     }, 10000);
 }
 
-// Funkce pro ruční prozvonění z karty lisu (volaná pouze v Nastavení)
 window.notifyLis = function(index) {
     const item = lisy[index];
     if (!item || !item.kontakt) return;
 
-    window.playTone();
-    showModal(index + 1, item.kontakt, item.prurez, item.jmeno, true);
+    set(ref(db, 'lisy/prozvonit'), {
+        lis: index + 1,
+        kontakt: item.kontakt,
+        prurez: item.prurez,
+        jmeno: item.jmeno,
+        timestamp: Date.now()
+    });
 };
+
+onValue(ref(db, 'lisy/prozvonit'), snap => {
+    const data = snap.val();
+    if (!data) return;
+
+    if (currentScreen === "production") {
+        showModal(data.lis, data.kontakt, data.prurez, data.jmeno);
+        window.playTone();
+    }
+});
 
 
 /* ================= LISY ================= */
@@ -1429,12 +1455,14 @@ window.addRequest = function() {
     if (!k && !p && !j) return;
 
     const casTecka = timeNow();
+    const dnesniDatum = dateNow();
     const novyRef = push(ref(db, 'pozadavky'));
 
     set(novyRef, {
         kontakt: k,
         prurez: p,
         jmeno: j,
+        datumZadani: dnesniDatum,
         timeZadani: casTecka,
         timestamp: Date.now()
     });
@@ -1452,12 +1480,14 @@ window.addRequestSetup = function() {
     if (!k && !p && !j) return;
 
     const casTecka = timeNow();
+    const dnesniDatum = dateNow();
     const novyRef = push(ref(db, 'pozadavky'));
 
     set(novyRef, {
         kontakt: k,
         prurez: p,
         jmeno: j,
+        datumZadani: dnesniDatum,
         timeZadani: casTecka,
         timestamp: Date.now()
     });
@@ -1475,10 +1505,12 @@ window.assignToLis = function(lisIndex, key) {
     if (!pozadavek) return;
 
     const cas = timeNow();
+    const dnesniDatum = pozadavek.datumZadani || dateNow();
     const novyLis = {
         kontakt: pozadavek.kontakt || "",
         prurez: pozadavek.prurez || "",
         jmeno: pozadavek.jmeno || "",
+        datumZadani: dnesniDatum,
         timeZadani: pozadavek.timeZadani || cas,
         timeNaLisu: cas
     };
@@ -1503,6 +1535,7 @@ window.finishLis = function(lisIndex) {
         prurez: item.prurez,
         jmeno: item.jmeno,
         lis: lisIndex + 1,
+        datumZadani: item.datumZadani || dateNow(),
         timeZadani: item.timeZadani || "",
         timeNaLisu: item.timeNaLisu || "",
         timeOdejmuti: casOdejmuti,
@@ -1517,7 +1550,7 @@ window.deleteRequest = function(key) {
 };
 
 
-/* ================= VYKRRESLENÍ (RENDER) ================= */
+/* ================= VYKRESLENÍ (RENDER) ================= */
 
 function renderCards(topContainerId, bottomContainerId, isProduction = false) {
     const topContainer = document.getElementById(topContainerId);
@@ -1607,7 +1640,7 @@ function renderHistoryTable() {
     if (!tbody) return;
 
     if (historieList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: #94a3b8;">Žádná historie k zobrazení.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: #94a3b8;">Žádná historie k zobrazení.</td></tr>';
         return;
     }
 
@@ -1615,6 +1648,7 @@ function renderHistoryTable() {
     historieList.forEach(h => {
         html += `
             <tr>
+                <td><b>${h.datumZadani || "---"}</b></td>
                 <td><b>${h.kontakt || "---"}</b></td>
                 <td>${h.prurez || "---"}</td>
                 <td>${h.jmeno || "---"}</td>
@@ -1649,6 +1683,7 @@ window.exportToXML = function() {
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<historie>\n';
     historieList.forEach(item => {
         xml += `  <zaznam>\n`;
+        xml += `    <datumZadani>${item.datumZadani || ""}</datumZadani>\n`;
         xml += `    <kontakt>${item.kontakt || ""}</kontakt>\n`;
         xml += `    <prurez>${item.prurez || ""}</prurez>\n`;
         xml += `    <jmeno>${item.jmeno || ""}</jmeno>\n`;
